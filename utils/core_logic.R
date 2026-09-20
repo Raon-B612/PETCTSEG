@@ -2,7 +2,7 @@
 read_dicom_dir <- function(sourc_dir = 'G:/PETCTDCM') {
   paths   <- c("G:/PETCTDCM", "F:/PETCTDCM", "H:/PETCTDCM", "C:/Temp/PETCTDCM")
   dcm_dir <- first(paths[dir.exists(paths)]) %||% stop("No valid DICOM path found")
-  cat('[OK] Dicom folder:', dcm_dir, '.\n')
+  cat('[INFO] Dicom folder:', dcm_dir, '.\n')
   
   dcm_df <- dir_ls(dcm_dir, regexp = "(CT|PT)$", recurse = TRUE, type = "directory") |>
     tibble(dir = _) |>
@@ -29,7 +29,7 @@ read_dicom_dir <- function(sourc_dir = 'G:/PETCTDCM') {
       suv         = path(output_dir, paste0('SUV_', subjid, '.nii.gz')),
     )
   write_csv(dcm_df, path(prep_dir, "petctdcm.csv"))
-  cat('[OK] petctdcm.csv: saved.\n')
+  cat('[INFO] petctdcm.csv: saved.\n')
   dcm_df
 }
 
@@ -39,9 +39,11 @@ dcm2nii_ct <- function(dicom_df) {
     filter(!file.exists(ct)) |> 
     arrange(subjid)
   write_csv(nii_df, path(prep_dir, "dcm2nii_prep.csv"))
-  script_path <- path(script_dir, 'conversion', 'convert_ct_to_nifti.py')
-  shell(sprintf('start /wait "DICOM2NII" cmd /k python -u "%s"', script_path), wait = FALSE)
-  cat("[OK] CT DICOM → NIfTI: completed.\n")
+
+  py_script <- path(script_dir, "conversion", "convert_ct_to_nifti.py")
+  cmd_str   <- sprintf('start "DICOM2NII" cmd /k python -u "%s"', py_script)
+  
+  shell(cmd_str, wait = FALSE)
 }
 
 # LIFEx execution for PET SUV conversion
@@ -58,32 +60,52 @@ dcm2nii_pet <- function(dicom_df) {
   })))
   write_lines(sx, path(prep_dir, "suv_lifex.txt"))
   suppressMessages(shell('"C:\\Users\\Heartwork101\\AppData\\Local\\LIFEx-25.06.1\\LIFEx-25.06.1.exe"', wait = FALSE))
-  cat('[OK] PETDICOM → NIfTI: completed.\n')
 }
 
 # SUV image resampling to CT space
-resample_suv_to_ct <- function(source_dir) {
+resample_suv_to_ct <- function(source_dir, overwrite = 'FALSE') {
   # source_dir <- src_dir
+  # overwrite <- TRUE
   rename_lx(source_dir); move_deprecated(source_dir)
   gz_df <- dir_parsing(source_dir)
-  incomplete <- gz_df |> 
-    filter(!file.exists(ct)|!file.exists(suv))
+  
+  incomplete <- gz_df |> filter(!file.exists(ct)|!file.exists(suv))
   if (nrow(incomplete) != 0) stop(cat('[ERROR] missing NifTI files in', unlist(select(incomplete, dir)), '..'))
-  rs_df <- gz_df |> filter(file.exists(ct), file.exists(suv), !file.exists(pet))
-  write_csv(rs_df, path(prep_dir, "pet_resample_prep.csv"))
-  shell(sprintf('start /wait "RESAMPLE_PET" cmd /k python -u "%s"', path(script_dir, 'preprocessing', "resample_pet_to_ct.py")), wait = FALSE)
-  # if (all(file.exists(gz_df$pet))) cat("[OK] resample suv to ct: completed.\n") else stop('[!!] resample suv to ct: unsuccessful.\n')
+  
+  if (overwrite) {
+    rs_df <- gz_df
+  } else {
+    rs_df <- gz_df |> filter(file.exists(ct), file.exists(suv), !file.exists(pet))
+  }
+  write_csv(rs_df, path(prep_dir, "resample_suv_prep.csv"))
+  
+  is_hdd <- str_detect(as.character(rs_df$ct[1]), '^[DEde]:')
+  hdd_flag <- if (is_hdd) "--hdd" else ""
+  
+  py_script <- path(script_dir, "preprocessing", "resample_suv_to_ct.py")
+  cmd_str   <- sprintf('start "RESAMPLE_PET_TO_CT" cmd /k python -u "%s" %s', py_script, hdd_flag)
+  
+  shell(cmd_str, wait = FALSE)
 }
 
 # Run TotalSegmentator model
-run_totalsegmentator <- function () {
-  cmd <- sprintf('start /wait "TOTALSEGMENTATOR" cmd /k ""C:\\Users\\Heartwork101\\miniconda3\\Scripts\\activate.bat" "C:\\Users\\Heartwork101\\miniconda3" && conda activate totalseg_env && python -u "%s""', path(script_dir, 'segmentation', "segment_total.py"))
-  shell(cmd, wait = TRUE)
+run_totalsegmentator <- function() {
+  py_script <- path(script_dir, "segmentation", "segment_total.py")
+  cmd_str   <- sprintf(
+    'start /wait "TOTALSEGMENTATOR" cmd /k ""C:\\Users\\Heartwork101\\miniconda3\\Scripts\\activate.bat" "C:\\Users\\Heartwork101\\miniconda3" && conda activate totalseg_env && python -u "%s""',
+    py_script
+  )
+  shell(cmd_str, wait = TRUE)
 }
 
 # Run MOOSE model
 run_moose <- function() {
-  cmd <- sprintf('start /wait "MOOSE_SEG" cmd /k ""%s" && python -u "%s""', "C:/Users/Heartwork101/moose/Scripts/activate.bat", path(script_dir, 'segmentation', "segment_moose.py"))
+  py_script <- path(script_dir, "segmentation", "segment_moose.py")
+  cmd_str   <- sprintf(
+    'start /wait "MOOSE_SEG" cmd /k ""C:/Users/Heartwork101/moose/Scripts/activate.bat" && python -u "%s""',
+    py_script
+  )
+  shell(cmd_str, wait = TRUE)
 }
 
 # Prepare CSV files for segmentation
@@ -142,20 +164,19 @@ prepare_segmentation <- function(source_dir = gz_dir, task = 'all') {
     arrange(desc(ct)) |>
     write_csv(path(prep_dir, 'moose_prep_wsl.csv'))
   
-  cat('\n|> Saving segmentation lists ... done.')
+  cat('\n[+] Saving segmentation lists ... done.')
 }
 
 # High-level segmentation wrapper
 segment_ct <- function(source_dir) {
-  run_totalsegmentator(); run_moose(); rename_moose(source_dir); Sys.sleep(10)
-  # seg_df <- dir_parsing(source_dir) |> generate_expanded_df() |> filter(seg_missing)
-  # if (nrow(filter(seg_df, seg_missing)) == 0) { cat('\n[OK] CT segmentation: completed.\n') } 
-  # else { cat('[!!] segmentation: unsuccessful.\n'); run_totalsegmentator(); run_moose(); rename_moose(source_dir) }
+  run_totalsegmentator()
+  run_moose()
+  rename_moose(source_dir)
 }
 
 # Run ROI measurement
 measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
-  # source_dir <- gz_dir
+  # source_dir <- 'D:/PSMAV/'
   df <- dir_parsing(source_dir) |> generate_expanded_df()
   
   incomplete <- df |> filter(img_missing|seg_missing)
@@ -169,8 +190,14 @@ measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
     select(subjid, ct, pet, seg, module, output_dir, csv)
   write_csv(measure_df, path(prep_dir, 'measure_prep.csv'))
   
-  shell(sprintf('start /wait "MEASURE_ROI" cmd /k python -u "%s"', path(script_dir, "roi_measurement.py")), wait = TRUE)
-  cat("\n[OK] ROI measurement completed in", unlist(source_dir), '.')
+  is_hdd <- str_detect(as.character(measure_df$ct[1]), '^[DEde]:')
+  hdd_flag <- if (is_hdd) "--hdd" else ""
+  
+  py_script <- path(script_dir, "measurement", "measure_roi.py")
+  cmd_str <- sprintf('start "MEASURE_ROI" cmd /k python -u "%s" %s', py_script, hdd_flag)
+  shell(cmd_str, wait = FALSE)
+  
+  message("\n[INFO] ROI measurement completed: ", unlist(source_dir), '.')
 }
 
 # Helper: Empty QC data table
@@ -236,12 +263,12 @@ summarize_subject_measures <- function(overwrite = FALSE) {
     df <- get_subjects_dt(dept_to_summarize); if (!nrow(df)) next
     csv_df <- build_subject_module_map(df, modules, tmj_modules, ent_modules, hc_modules)
     if (any(csv_df$csv_missing)) { 
-      cat("\n[WARNING] Missing CSVs in:", basename(dept_to_summarize))
+      cat("\n[ERROR] Missing CSVs in:", basename(dept_to_summarize))
       filter(csv_df, csv_missing==TRUE) |> pull(subjid) |> unique() |> print()
       next 
       }
     
-    csv_split <- split(csv_df, by = "dir"); cat("\nSummarizing ", basename(dept_to_summarize), " ...")
+    csv_split <- split(csv_df, by = "dir"); cat("Summarizing", basename(dept_to_summarize), "...")
     dept_qc_accum <- vector("list", 0L)
     
     for (subjdir in names(csv_split)) {
@@ -264,14 +291,14 @@ summarize_subject_measures <- function(overwrite = FALSE) {
       t1_missing <- is.na(summary_df[tolower(label) == "vertebrae_t1", suv_mean][1])
       
       if (!is_tmj && t1_missing) { 
-        cat("\n[QC FAIL] T1 missing for:", subjid)
+        cat("\n[ERROR] QC FAIL - T1 missing for:", subjid)
         dept_qc_accum[[length(dept_qc_accum) + 1L]] <- unique(subj_csv_df[, ..qc_fail_cols], by = "dir"); next 
       }
       
       if (nrow(summary_df) > 0) {
         write_atomic_csv(summary_df, out)
       } else {
-        cat("\n[WARNING] Empty result after join for:", subjid)
+        cat("\n[WARN] Empty result after join for:", subjid)
       }
     }
     
@@ -283,4 +310,5 @@ summarize_subject_measures <- function(overwrite = FALSE) {
       fwrite(qc_fail_dt, qc_fail_file)
     }
   }
+  cat('\n[+] Summaries are successfully saved.')
 }

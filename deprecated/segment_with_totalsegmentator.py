@@ -3,6 +3,7 @@ import time
 import gc
 import re
 import os
+import sys
 import socket
 import requests
 from tqdm import tqdm
@@ -129,8 +130,18 @@ def run_total_segmentator(organ, infile, outfile):
     if not (os.path.exists(outfile) and os.path.getsize(outfile) > 0):
         print(f"...MISSING OUTPUT: {outfile}\n")
 
+def get_script_dir():
+    try:
+        # Standard script execution
+        return Path(__file__).resolve().parent
+    except NameError:
+        # Fallback for environments without __file__ (e.g., interactive, Jupyter)
+        return Path(sys.argv[0]).resolve().parent
+
 def main():
-    csv_file_path = "C:/Users/Heartwork101/Documents/PETCTSEG/scripts/prep/tseg_prep_emma.csv"
+    # Load the CSV file into a pandas DataFrame
+    SCRIPT_DIR = Path(get_script_dir())
+    csv_file_path = SCRIPT_DIR.parent / "prep" / "tseg_prep_emma.csv"
     error_rows = []
 
     with open(csv_file_path, newline="", encoding="utf-8-sig") as csv_file:
