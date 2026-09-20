@@ -64,8 +64,8 @@ dcm2nii_pet <- function(dicom_df) {
 
 # SUV image resampling to CT space
 resample_suv_to_ct <- function(source_dir, overwrite = 'FALSE') {
-  # source_dir <- src_dir
-  # overwrite <- TRUE
+  # source_dir <- hc_dir
+  # overwrite <- FALSE
   rename_lx(source_dir); move_deprecated(source_dir)
   gz_df <- dir_parsing(source_dir)
   
@@ -79,13 +79,15 @@ resample_suv_to_ct <- function(source_dir, overwrite = 'FALSE') {
   }
   write_csv(rs_df, path(prep_dir, "resample_suv_prep.csv"))
   
-  is_hdd <- str_detect(as.character(rs_df$ct[1]), '^[DEde]:')
-  hdd_flag <- if (is_hdd) "--hdd" else ""
-  
-  py_script <- path(script_dir, "preprocessing", "resample_suv_to_ct.py")
-  cmd_str   <- sprintf('start "RESAMPLE_PET_TO_CT" cmd /k python -u "%s" %s', py_script, hdd_flag)
-  
-  shell(cmd_str, wait = FALSE)
+  if (nrow(rs_df) > 0) {
+    is_hdd <- str_detect(as.character(rs_df$ct[1]), '^[DEde]:')
+    hdd_flag <- if (is_hdd) "--hdd" else ""
+    
+    py_script <- path(script_dir, "preprocessing", "resample_suv_to_ct.py")
+    cmd_str   <- sprintf('start "RESAMPLE_PET_TO_CT" cmd /k python -u "%s" %s', py_script, hdd_flag)
+    
+    shell(cmd_str, wait = FALSE)
+  }
 }
 
 # Run TotalSegmentator model
