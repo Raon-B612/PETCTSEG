@@ -1,56 +1,51 @@
 # Build DICOM to NIfTI mapping
-read_dicom_dir <- function(sourc_dir = 'G:/PETCTDCM') {
-  paths   <- c("G:/PETCTDCM", "F:/PETCTDCM", "H:/PETCTDCM", "C:/Temp/PETCTDCM")
-  dcm_dir <- first(paths[dir.exists(paths)]) %||% stop("No valid DICOM path found")
-  cat('[INFO] Dicom folder:', dcm_dir, '.\n')
+read_dicom_dir <- function(src_dir = 'C:/Temp/PETCTSRC/', dcm_dir = dcm_path) {
+  message('[INFO] ', path(dcm_dir), ' --> ', path(src_dir))
   
-  dcm_df <- dir_ls(dcm_dir, regexp = "(CT|PT)$", recurse = TRUE, type = "directory") |>
+  dcm_df <- dir_ls(dcm_dir, type = "directory",  recurse = TRUE, regexp = "(CT|PT)$") |>
     tibble(dir = _) |>
     mutate(
-      subjid_long = str_extract(dir, '[A-Z0-9]+\\d{10,13}_\\d{8}'),
-      ctdcm  = if_else(str_detect(dir, "CT$"), dir, NA_character_),
-      petdcm = if_else(str_detect(dir, "PT$"), dir, NA_character_)
+      subjid_long = str_extract(dir, patterns$subjid_long),
+      mod = case_when(
+        str_detect(dir, "CT$")    ~ 'ctdcm',
+        str_detect(dir, "PT$")    ~ 'petdcm',
+        str_detect(dir, "SPECT$") ~ 'spectdcm'
+      )
     ) |>
-    select(-dir) |>
-    group_by(subjid_long) |>
-    reframe(
-      ctdcm = first(na.omit(ctdcm)), 
-      petdcm = first(na.omit(petdcm))
-      ) |>
-    ungroup() |> 
+    pivot_wider(
+      names_from  = mod,
+      values_from = dir
+    ) |>
     left_join(seg_db |> select(subjid_long, qdate), by = "subjid_long") |>
     filter(is.na(qdate)) |>
     mutate(
-      subjid      = str_remove(subjid_long, "_\\d{8}$"),
-      pdate       = str_extract(subjid_long, "\\d{8}$"),
-      prefix      = str_remove(subjid, "\\d{10,13}"),
-      output_dir  = path(gz_dir, prefix, subjid_long),
+      subjid      = str_extract(subjid_long, patterns$subjid),
+      pdate       = str_extract(subjid_long, '\\d{8}$') |> ymd(),
+      prefix      = str_extract(subjid_long, patterns$prefix),
+      output_dir  = path(src_dir, prefix, subjid_long),
       ct          = path(output_dir, paste0('CT_', subjid, '.nii.gz')),
       suv         = path(output_dir, paste0('SUV_', subjid, '.nii.gz')),
     )
+  
   write_csv(dcm_df, path(prep_dir, "petctdcm.csv"))
-  cat('[INFO] petctdcm.csv: saved.\n')
+  message('[INFO] petctdcm.csv: saved.\n')
   dcm_df
 }
 
 # Python script execution for CT NIfTI conversion
-dcm2nii_ct <- function(dicom_df) {
-    nii_df <- dicom_df |> 
-    filter(!file.exists(ct)) |> 
-    arrange(subjid)
+dcm2nii_ct <- function(dicom_df=dcm_df, skip = TRUE) {
+  nii_df <- if (isTRUE(skip)) filter(dicom_df, !file.exists(ct)) else dicom_df
   write_csv(nii_df, path(prep_dir, "dcm2nii_prep.csv"))
-
+  
   py_script <- path(script_dir, "conversion", "convert_ct_to_nifti.py")
   cmd_str   <- sprintf('start "DICOM2NII" cmd /k python -u "%s"', py_script)
-  
   shell(cmd_str, wait = FALSE)
 }
 
 # LIFEx execution for PET SUV conversion
-dcm2nii_pet <- function(dicom_df) {
-  lx_df <- dicom_df |> 
-    mutate(suv = str_replace(ct, 'CT_', 'SUV_')) |> 
-    filter(!file.exists(suv))
+dcm2nii_pet <- function(dicom_df = dcm_df) {
+  lx_df <- filter(dicom_df, !file.exists(suv))
+  
   sx <- c("LIFEx.Script = Main", "LIFEx.Script.Version = 25.06.1", "")
   sx <- c(sx, unlist(map2(seq_len(nrow(lx_df)) - 1, lx_df$output_dir, \(i, outdir) {
     pfx <- paste0("LIFEx.Patient", i, ".Series0")
@@ -58,15 +53,19 @@ dcm2nii_pet <- function(dicom_df) {
       paste0(pfx, ".Operation0.Output.Directory=", str_replace_all(outdir, "\\\\", "/"), "/"), 
       paste0(pfx, ".Operation0=Save nii float32"), "")
   })))
-  write_lines(sx, path(prep_dir, "suv_lifex.txt"))
-  suppressMessages(shell('"C:\\Users\\Heartwork101\\AppData\\Local\\LIFEx-25.06.1\\LIFEx-25.06.1.exe"', wait = FALSE))
+  
+  write_lines(sx, path(prep_dir, "convert_suv_to_nifti_lifex.txt"))
+  
+  suppressMessages(
+    shell('"C:\\Users\\Heartwork101\\AppData\\Local\\LIFEx-25.06.1\\LIFEx-25.06.1.exe"', wait = FALSE)
+    )
 }
 
 # SUV image resampling to CT space
 resample_suv_to_ct <- function(source_dir, overwrite = 'FALSE') {
-  # source_dir <- hc_dir
-  # overwrite <- FALSE
-  rename_lx(source_dir); move_deprecated(source_dir)
+  rename_lx(source_dir)
+  move_deprecated(source_dir)
+  
   gz_df <- dir_parsing(source_dir)
   
   incomplete <- gz_df |> filter(!file.exists(ct)|!file.exists(suv))

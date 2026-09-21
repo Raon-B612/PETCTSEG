@@ -22,7 +22,7 @@ CSV_INPUT_PATH    = SCRIPT_DIR.parent / "prep" / "dcm2nii_prep.csv"
 ERROR_OUTPUT_PATH = SCRIPT_DIR.parent / "logs" / "dcm2nii_error.csv"
 
 # Allocate half of physical CPU cores with fallback to avoid TypeError on None
-NUM_WORKERS = max(1, (psutil.cpu_count(logical=False) or os.cpu_count() or 2) // 2)
+NUM_WORKERS = max(1, (psutil.cpu_count(logical=False) or os.cpu_count() or 2) - 1)
 
 def execute_command(task):
     """

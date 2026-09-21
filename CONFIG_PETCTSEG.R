@@ -1,9 +1,24 @@
-# paths and config
+# Paths and config
 home_dir    <- path(Sys.getenv("USERPROFILE"), "Documents", "PETCTSEG")
 script_dir  <- path(home_dir, "scripts")
+log_dir     <- path(script_dir, "logs")
 prep_dir    <- path(script_dir, "prep")
 measure_dir <- path(home_dir, "measurements/current")
 summary_dir <- path(home_dir, "summaries")
+
+dir_create(list(home_dir, script_dir, prep_dir, measure_dir, summary_dir))
+
+dcm_path  <- c("G:/PETCTDCM", "F:/PETCTDCM", "H:/PETCTDCM", "C:/Temp/PETCTDCM") %>%
+  keep(dir_exists(.)) |>
+  first() %||% stop("No valid DICOM path found")
+
+# Patterns for parsing dirname
+patterns <- list(
+  subjid_long = "[A-Z0-9]+[BMPVX]\\d{10,13}_\\d{8}",
+  subjid      = "[A-Z0-9]+[BMPVX]\\d{10,13}",
+  pdate       = "\\d{4}-\\d{2}-\\d{2}",
+  prefix      = "[A-Z0-9]+[BMPVX]"
+)
 
 # Load VOI labels
 voi    <- read_xlsx(path(script_dir, "voi_labels_v3.xlsx"))

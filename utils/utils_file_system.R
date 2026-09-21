@@ -1,24 +1,14 @@
 # Create parent directory for a file
-mkdir_file <- function(file) {
-  if (!dir.exists(dirname(file))) {
-    dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
-  }
-}
-
-# Create a directory
 mkdir <- function(files_or_folders) {
-  dl <- path(files_or_folders)
-  newdir <- c(dl[is_dir(dl)], dirname(dl[!is_dir(dl)])) |> unique()
-  dir_create(newdir)
-  cat(paste0("Successfully created ", newdir, "\n"), sep = "")
+  dirs <- path(files_or_folders) %>%
+    ifelse(path_ext(.) == "", ., path_dir(.)) |>
+    unique()
+  
+  dir_create(dirs)
+  if (all(dir_exists(dirs))) cli_alert_success("Successfully created: {dirs}")
+  
+  invisible(dirs)
 }
-
-mkdir_dir <- function(dir) {
-  if (!dir.exists(dir)) {
-    dir.create(dir, recursive = TRUE, showWarnings = FALSE)
-  }
-}
-
 
 # Ensure parent directory exists
 ensure_parent_dir <- function(path) {
@@ -163,32 +153,43 @@ rename_moose <- function(subjdir) {
 
 # Rename LIFEx SUV outputs
 rename_lx <- function(src_dir = gz_dir) {
-  suv_fl <- list.files(src_dir, "SUVbw.*it[0-9]", full.names = TRUE, recursive = TRUE)
-  for (i in suv_fl) {
-    sub_long <- str_extract(i, "[A-Z0-9]+[BMPVX]\\d{10,13}_\\d{8}")
-    sub_id   <- str_extract(sub_long, "[A-Z0-9]+[BMPVX]\\d{10,13}")
-    prefix   <- str_remove(sub_id, "\\d{10,13}$")
-    outfile  <- file.path(src_dir, prefix, sub_long, paste0("SUV_", sub_id, ".nii.gz"))
-    mkdir_file(outfile)
-    file.copy(i, outfile, overwrite = TRUE)
-    print(outfile)
+  lx_df <- dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = "SUVbw.*it[0-9]") |>
+    tibble(infile = _) |>
+    mutate(
+      subjid  = str_extract(dirname(infile), patterns$subjid),
+      suv     = paste0('SUV_', subjid, '.nii.gz'),
+      subjdir = str_split_fixed(infile, '3D', 2)[,1],
+      outfile = path(subjdir, suv)
+    ) |>
+    select(infile, outfile)
+  
+  file.copy(lx_df$infile, lx_df$outfile)
+  
+  if (all(file_exists(lx_df$outfile))) {
+    cli_alert_success('Successfully renamed SUV PET files.')
+  } else {
+    stop('Renaming failed.')
   }
 }
 
 # Move deprecated or raw files to cleanup root
 move_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
-  # src_dir <- gz_dir
-  files_to_move <- list.files(src_dir, full.names = TRUE, recursive = TRUE) %>%
-    keep(~ str_detect(.x, "ROI|Eq|SUVbw|json$|[a-z]\\.nii\\.gz")) %>%
-    c(dir_ls(src_dir, regexp = "3D|moosez-", type = "directory", recurse = TRUE))
+  files_to_move <- c(
+    dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = '(CT_|SUV_|PET).*\\.nii', invert = TRUE),
+    dir_ls(src_dir, type = 'directory', recurse = TRUE, regexp = "3D|moosez-|tmp")
+  )
   
-  walk(files_to_move, function(path0) {
-    rel  <- path_rel(path0, start = src_dir)
-    dest <- file.path(target_root, rel)
-    dir_create(dirname(dest))
-    if (dir_exists(path0)) { dir_copy(path0, dest, overwrite = TRUE); dir_delete(path0) }
-    else { file_copy(path0, dest, overwrite = TRUE); file_delete(path0) }
-  })
+  if (length(files_to_move) > 0) {
+    walk(files_to_move, function(path0) {
+      rel  <- path_rel(path0, start = src_dir)
+      dest <- file.path(target_root, rel)
+      dir_create(dirname(dest))
+      if (dir_exists(path0)) { dir_copy(path0, dest, overwrite = TRUE); dir_delete(path0) }
+      else { file_copy(path0, dest, overwrite = TRUE); file_delete(path0) }
+    })
+  }
+  
+  cli_alert_success('Successfully moved temporary files/folders to {target_root}.')
 }
 
 # Distribute processed files to permanent drive locations

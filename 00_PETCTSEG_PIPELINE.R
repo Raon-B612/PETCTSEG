@@ -4,22 +4,22 @@ source('~/CONFIG.R')
 source('~/PETCTSEG/scripts/CONFIG_PETCTSEG.R')
 
 # set working directory
-src_dir <- path('C:/Temp/PETCTSRC/')
-mkdir(src_dir)
+src_dir <- 'C:/Temp/PETCTSRC/'
+dir_create(src_dir)
 
 # quick update segmentation database
 seg_db <- read_csv(path(share_dir, 'seg_db.csv'), show_col_types = FALSE)
 seg_db[1,] |> select(pdate, qdate)
 
 #-- 00. preprocessing --#
-dcm_df <- read_dicom_dir('F:/PETCTDCM/')
-dcm2nii_ct(dcm_df)
+dcm_df <- read_dicom_dir()
+dcm2nii_ct(dcm_df, skip = FALSE)
 dcm2nii_pet(dcm_df)
 
 #-- 01. resample PET to CT space --#
 rename_lx(src_dir)
-move_deprecated(src_dir)
 resample_suv_to_ct(src_dir)
+move_deprecated(src_dir)
 
 # -- 02. segmentation --#
 prepare_segmentation(src_dir, task = 'all')
