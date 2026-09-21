@@ -1,6 +1,6 @@
 ##-- 00. initialize --##
 rm(list=ls())
-source('~/CONFIG_EMMA.R')
+source('~/CONFIG.R')
 source('~/PETCTSEG/scripts/CONFIG_PETCTSEG.R')
 
 # set working directory

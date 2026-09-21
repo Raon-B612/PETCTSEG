@@ -1,11 +1,3 @@
-# libraries
-suppressPackageStartupMessages({
-  library(data.table)
-  library(fs)
-  library(readxl)
-  library(tidyverse)
-  })
-
 # paths and config
 home_dir    <- path(Sys.getenv("USERPROFILE"), "Documents", "PETCTSEG")
 script_dir  <- path(home_dir, "scripts")
