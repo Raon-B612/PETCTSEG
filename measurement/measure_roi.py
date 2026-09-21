@@ -3,9 +3,10 @@ import sys
 import re
 import gc
 import argparse
+import multiprocessing as mp
 from pathlib import Path
 from datetime import date
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
 import psutil
 import pandas as pd
 import numpy as np
@@ -40,39 +41,51 @@ def format_exception_msg(err: Exception) -> str:
             return f"SimpleITK Error: {match.group(1).strip()}"
     return " ".join(msg.split())
 
+# === Worker IPC Counter State ===
+_worker_active_counter = None
+
+def _init_worker(counter):
+    """Initializer to share the atomic counter with each child worker process."""
+    global _worker_active_counter
+    _worker_active_counter = counter
+
 # === Group Worker Function ===
 def process_pet_ct_group(group_data):
     """
     Processes all segmentations associated with a single PET/CT pair.
     Returns (success_flag, list_of_error_records) to eliminate multiprocessing file contention.
     """
+    # 워커 시작 시 활성 프로세스 수 카운트 증가
+    if _worker_active_counter is not None:
+        with _worker_active_counter.get_lock():
+            _worker_active_counter.value += 1
+
     ct_path, pet_path, tasks_in_group = group_data
     errors_encountered = []
+    ct_img = None
+    pet_img = None
 
     # Limit SimpleITK internal threads to 1 per worker to prevent CPU contention
     sitk.ProcessObject.SetGlobalDefaultNumberOfThreads(1)
 
-    # 1. Skip entire group if all expected output CSV files already exist and are non-empty
-    all_completed = all(
-        os.path.isfile(item['csv']) and os.path.getsize(item['csv']) > 0
-        for item in tasks_in_group
-    )
-    if all_completed:
-        return True, []
-
-    # 2. Check source file existence for CT and PET
-    if not os.path.isfile(ct_path):
-        err_msg = f"CT file not found: {ct_path}"
-        return False, [{**item, 'error_msg': err_msg} for item in tasks_in_group]
-
-    if not os.path.isfile(pet_path):
-        err_msg = f"PET file not found: {pet_path}"
-        return False, [{**item, 'error_msg': err_msg} for item in tasks_in_group]
-
-    ct_img = None
-    pet_img = None
-
     try:
+        # 1. Skip entire group if all expected output CSV files already exist and are non-empty
+        all_completed = all(
+            os.path.isfile(item['csv']) and os.path.getsize(item['csv']) > 0
+            for item in tasks_in_group
+        )
+        if all_completed:
+            return True, []
+
+        # 2. Check source file existence for CT and PET
+        if not os.path.isfile(ct_path):
+            err_msg = f"CT file not found: {ct_path}"
+            return False, [{**item, 'error_msg': err_msg} for item in tasks_in_group]
+
+        if not os.path.isfile(pet_path):
+            err_msg = f"PET file not found: {pet_path}"
+            return False, [{**item, 'error_msg': err_msg} for item in tasks_in_group]
+
         # Load large 3D volumes once per (CT, PET) group
         ct_img = sitk.ReadImage(ct_path)
         pet_img = sitk.ReadImage(pet_path)
@@ -168,8 +181,8 @@ def process_pet_ct_group(group_data):
                         'hu_median': ct_filter.GetMedian(label),
                         'hu_max': ct_filter.GetMaximum(label),
                         'hu_min': ct_filter.GetMinimum(label),
-                        'volume': vol_mm3,                                           # Preserved mm^3
-                        'volume_ml': vol_ml,                                         # Standard mL
+                        'volume': vol_mm3,                                          # Preserved mm^3
+                        'volume_ml': vol_ml,                                        # Standard mL
                         'area': (vol_mm3 / z_len * 10.0) if z_len > 0 else 0.0,      # Legacy formula
                         'mean_slice_area_mm2': (vol_mm3 / z_len) if z_len > 0 else 0.0,
                         'tlg': suv_mean * vol_ml,                                    # Standard TLG: SUV_mean * MTV (mL)
@@ -213,6 +226,10 @@ def process_pet_ct_group(group_data):
     finally:
         del ct_img, pet_img
         gc.collect()
+        # 조기 종료(return), 성공, 예외 상황 상관없이 항상 카운트 감소
+        if _worker_active_counter is not None:
+            with _worker_active_counter.get_lock():
+                _worker_active_counter.value -= 1
 
 # === Main Pipeline Execution ===
 def main():
@@ -273,15 +290,36 @@ def main():
 
     all_error_records = list(immediate_errors)
 
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+    # 프로세스 간 공유할 스레드/프로세스 안전한 카운터
+    active_counter = mp.Value('i', 0)
+
+    with ProcessPoolExecutor(
+        max_workers=num_workers,
+        initializer=_init_worker,
+        initargs=(active_counter,)
+    ) as executor:
         futures = [executor.submit(process_pet_ct_group, payload) for payload in task_payloads]
-        for future in tqdm(as_completed(futures), total=len(task_payloads), ascii=' #'):
-            try:
-                _, errors = future.result()
-                if errors:
-                    all_error_records.extend(errors)
-            except Exception as fut_err:
-                all_error_records.append({'error_msg': format_exception_msg(fut_err)})
+        not_done = set(futures)
+
+        with tqdm(total=len(task_payloads), ascii=' #', desc="Processing") as pbar:
+            while not_done:
+                # 2초 동안 대기하면서 완료된 작업 수거 (작업이 없어도 2초마다 반환되어 루프 돎)
+                done, not_done = wait(not_done, timeout=2, return_when=FIRST_COMPLETED)
+
+                for future in done:
+                    try:
+                        _, errors = future.result()
+                        if errors:
+                            all_error_records.extend(errors)
+                    except Exception as fut_err:
+                        all_error_records.append({'error_msg': format_exception_msg(fut_err)})
+                    pbar.update(1)
+
+                # 현재 작업 중인 실제 워커 수 조회 및 tqdm postfix 갱신
+                with active_counter.get_lock():
+                    current_active = active_counter.value
+
+                pbar.set_postfix(active=f"{current_active}/{num_workers}")
 
     # Centralized single-thread logging with atomic write and append fallback
     if all_error_records:
@@ -298,3 +336,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

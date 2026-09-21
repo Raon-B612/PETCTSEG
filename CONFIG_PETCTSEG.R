@@ -20,7 +20,7 @@ setkey(voi_dt, module, intensities)
 
 cols2select <- c("suv_max", "suv_mean", "hu_mean", "volume", "area")
 
-hc_modules  <- unique(voi$module)
+hc_modules  <- unique(voi$module) %>% .[. != "tseg_vertebrae_pp_refined"]
 modules     <- c("tseg_total", "tseg_tissue_types", "tseg_vertebrae_body", "moose_body_composition")
 # modules     <- c("tseg_total", "tseg_tissue_types", "tseg_vertebrae_body", "tseg_vertebrae_pp_refined", "moose_body_composition")
 tmj_modules <- c("tseg_head_glands_cavities", "tseg_head_muscles", "tseg_headneck_bones_vessels", "tseg_headneck_muscles", "tseg_craniofacial_structures")

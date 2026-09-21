@@ -198,8 +198,7 @@ measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
   py_script <- path(script_dir, "measurement", "measure_roi.py")
   cmd_str <- sprintf('start "MEASURE_ROI" cmd /k python -u "%s" %s', py_script, hdd_flag)
   shell(cmd_str, wait = FALSE)
-  
-  message("\n[INFO] ROI measurement completed: ", unlist(source_dir), '.')
+  # message("\n[INFO] ROI measurement completed: ", unlist(source_dir), '.')
 }
 
 # Helper: Empty QC data table
