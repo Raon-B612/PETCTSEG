@@ -1,2 +1,4 @@
 /prep
 /logs
+.RData
+.Rhistory
