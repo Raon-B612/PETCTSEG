@@ -179,6 +179,7 @@ rename_lx <- function(src_dir = gz_dir) {
   
   if (all(file_exists(lx_df$outfile))) {
     # cli_alert_success('Successfully renamed SUV PET files.')
+    cli_alert_success('Succesfully renamed {nrow(lx_df)} SUV PET files.')
     invisible()
   } else {
     stop('Renaming failed.')
