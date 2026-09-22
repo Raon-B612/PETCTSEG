@@ -256,7 +256,7 @@ summarize_subject_measures <- function(overwrite = FALSE) {
       next 
       }
     
-    csv_split <- split(csv_df, by = "dir"); cat("Summarizing", basename(dept_to_summarize), "...")
+    csv_split <- split(csv_df, by = "dir"); cat("Summarizing", basename(dept_to_summarize), "...\n")
     dept_qc_accum <- vector("list", 0L)
     
     for (subjdir in names(csv_split)) {
@@ -298,5 +298,5 @@ summarize_subject_measures <- function(overwrite = FALSE) {
       fwrite(qc_fail_dt, qc_fail_file)
     }
   }
-  cat('\n[+] Summaries are successfully saved.')
+  cli_alert_success('All individual summaries are created.')
 }

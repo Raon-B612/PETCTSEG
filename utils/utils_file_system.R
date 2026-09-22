@@ -1,13 +1,10 @@
 # Create parent directory for a file
-mkdir <- function(files_or_folders) {
+mkdir <- function(files_or_folders, quiet = TRUE) {
   dirs <- path(files_or_folders) %>%
     ifelse(path_ext(.) == "", ., path_dir(.)) |>
     unique()
-  
   dir_create(dirs)
-  if (all(dir_exists(dirs))) cli_alert_success("Successfully created: {dirs}")
-  
-  invisible(dirs)
+  if (!all(dir_exists(dirs))) cli_alert_danger("Could not create: {dirs}")
 }
 
 # Ensure parent directory exists
