@@ -23,8 +23,6 @@ move_deprecated(src_dir)
 
 # -- 02. segmentation --#
 prepare_segmentation(src_dir, task = 'all')
-ts <- read_csv(path(prep_dir, 'tseg_prep.csv'),  show_col_types = FALSE)
-ms <- read_csv(path(prep_dir, 'moose_prep.csv'), show_col_types = FALSE)
 # segment_ct(src_dir)
 
 #-- 03. roi_measurement and summary --#

@@ -16,6 +16,21 @@ ensure_parent_dir <- function(path) {
   invisible(path)
 }
 
+# convert folder names into wsl format
+win_to_wsl <- function(col) {
+  if (!is.character(col)) return(col)
+  
+  col <- gsub("\\\\", "/", col)
+  hit <- grepl("^[A-Za-z]:", col)
+  
+  if (any(hit)) {
+    drive <- tolower(substr(col[hit], 1, 1))
+    rest <- sub("^[A-Za-z]:/*", "", col[hit])
+    col[hit] <- paste0("/mnt/", drive, "/", rest)
+  }
+  return(col)
+}
+
 # Retrieve directories ending with department suffixes
 get_filtered_dirs <- function(drive) {
   list.dirs(drive, full.names = TRUE, recursive = FALSE) %>%
@@ -134,7 +149,7 @@ generate_expanded_df <- function(parsed_df) {
 
 # Rename MOOSE model outputs
 rename_moose <- function(subjdir) {
-  mkdir_dir("C:/Temp/todel/moosez")
+  suppressMessages(mkdir("C:/Temp/todel/moosez"))
   c(subjdir) |>
     map(~ dir_ls(.x, regexp = "clin_CT_.*_segmentation_CT.*\\.nii.gz", recurse = TRUE)) |>
     flatten_chr() |>
@@ -148,7 +163,7 @@ rename_moose <- function(subjdir) {
       file.rename(infile, outfile)
       cat("\n", infile, "-->", outfile)
     })
-  cat('\n')
+  cli_alert_success('All moose segmentation files are renamed.')
 }
 
 # Rename LIFEx SUV outputs
@@ -166,7 +181,8 @@ rename_lx <- function(src_dir = gz_dir) {
   file.copy(lx_df$infile, lx_df$outfile)
   
   if (all(file_exists(lx_df$outfile))) {
-    cli_alert_success('Successfully renamed SUV PET files.')
+    # cli_alert_success('Successfully renamed SUV PET files.')
+    invisible()
   } else {
     stop('Renaming failed.')
   }
@@ -224,12 +240,12 @@ distribute_processed_files <- function(processed_dir = gz_dir) {
     if (any(file.size(files_to_copy)==0)) stop('!= Zero-size file detected..') 
     if (!str_detect(x$prefix, 'HC[BMPVX]')) files_to_copy <- files_to_copy[!str_detect(basename(files_to_copy), 'PET_')] 
     
-    mkdir_dir(x$output_dir)
+    mkdir(x$output_dir)
     file.copy(files_to_copy, x$output_dir, overwrite = TRUE)
     cat('..', x$dir, "-->", x$output_dir)
     
     if (dir.exists('Z:/PETCTSEG/')) {
-      mkdir_dir(x$arx_dir)
+      mkdir(x$arx_dir)
       file.copy(files_to_copy, x$arx_dir, overwrite = TRUE)
       cat(" -->", x$arx_dir)
     }

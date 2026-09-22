@@ -111,62 +111,50 @@ run_moose <- function() {
 
 # Prepare CSV files for segmentation
 prepare_segmentation <- function(source_dir = gz_dir, task = 'all') {
-  # source_dir <- hc_dir; task <- 'all'
+  # source_dir <- gz_dir; task <- 'all'
   rename_moose(source_dir)
-  
+ 
+  # rename_moose(source_dir)
   gz_df <- dir_parsing(source_dir) |> generate_expanded_df()
   
-  incomplete <- gz_df |> dplyr::filter(!file.exists(ct))
-  if (nrow(incomplete) != 0) stop(sprintf("[!!] CT image missing in %s ..", paste(incomplete$dir, collapse = ", ")))
+  ctx <- filter(gz_df, !file.exists(ct))
+  if(nrow(ctx)!=0) stop(sprintf("Missing CT image(s):\n%s", paste(pull(ctx, dir), collapse = '\n')))
   
-  seg_df <- filter(gz_df, seg_missing) |> mutate(output_dir = dir) |> arrange(ct)
-  
-  ts_df <- seg_df |> 
-    filter(str_detect(module, "tseg")) |> 
-    select(ct, seg, module) |> 
+  seg_df <- filter(gz_df, seg_missing) |> 
+    mutate(output_dir = dir) |> 
     arrange(ct)
-  write_csv(ts_df, path(prep_dir, 'tseg_prep.csv')) # all segmentation queued
   
+  #----- totalsegmentator -----#
+  ts_df <- filter(seg_df, str_detect(module, 'tseg'))
   
   ts_df <- switch(
     task,
-    total = ts_df[str_detect(ts_df$module, "total"), ],
-    other = ts_df[!str_detect(ts_df$module, "total"), ],
+    total = ts_df |> filter( str_detect(module, "total")),
+    other = ts_df |> filter(!str_detect(module, "total")),
     ts_df
   )
-  write_csv(ts_df |> arrange(desc(ct)), path(prep_dir, 'tseg_prep_emma.csv')) # queded for emma
   
-  # convert path for wsl env
-  ts_df |>
-    mutate(
-      ct  = ct  |> str_replace('^C\\:', '/mnt/c') |> str_replace('^D\\:', '/mnt/d') |> str_replace('^E\\:', '/mnt/e'),
-      seg = seg |> str_replace('^C\\:', '/mnt/c') |> str_replace('^D\\:', '/mnt/d') |> str_replace('^E\\:', '/mnt/e')
-    ) |>
-    arrange(desc(ct)) |>
-    write_csv(path(prep_dir, 'tseg_prep_wsl.csv'))
+  write_csv(ts_df, path(prep_dir, 'tseg_prep.csv'))
   
-  # create moose segmentation list
-  ms_df <- seg_df |> 
-    filter(str_detect(module, "moose")) |> 
-    select(ct, module, output_dir) |> 
+  # for wsl; revserse order
+  ts_wsl   <- ts_df |> arrange(desc(ct))
+  ts_wsl[] <- lapply(ts_wsl, win_to_wsl)
+  write_csv(ts_wsl, path(prep_dir, 'moose_prep_wsl.csv'))
+  
+  #----- moose -----#
+  ms_df <- filter(seg_df, str_detect(module, "moose")) |>
     mutate(outfile = path(output_dir, paste0('clin_CT_', str_remove(module, 'moose_'), '_segmentation_', basename(ct)))) |>
-    arrange(ct) |>
-    filter(!file.exists(outfile))
+    select(ct, module, output_dir, outfile, seg)
+  
   write_csv(ms_df, path(prep_dir, "moose_prep.csv"))
-  write_csv(ms_df |> arrange(desc(ct)), path(prep_dir, 'moose_prep_emma.csv')) # queded for emma
   
-  # convert path for wsl env
-  ms_df |>
-    mutate(
-      ct  = ct  |> str_replace('^C\\:', '/mnt/c') |> str_replace('^D\\:', '/mnt/d') |> str_replace('^E\\:', '/mnt/e'),
-      output_dir = output_dir |> str_replace('^C\\:', '/mnt/c') |> str_replace('^D\\:', '/mnt/d') |> str_replace('^E\\:', '/mnt/e'),
-      outfile = outfile |> str_replace('^C\\:', '/mnt/c') |> str_replace('^D\\:', '/mnt/d') |> str_replace('^E\\:', '/mnt/e')
-    ) |>
-    arrange(desc(ct)) |>
-    write_csv(path(prep_dir, 'moose_prep_wsl.csv'))
+  ms_wsl   <- ms_df |> arrange(desc(ct))
+  ms_wsl[] <- lapply(ms_wsl, win_to_wsl)
+  write_csv(ms_wsl, path(prep_dir, "moose_prep_wsl.csv"))
   
-  cat('\n[+] Saving segmentation lists ... done.')
+  cli_alert_success('Ready: TotalSegmentator({nrow(ts_wsl)}) and Moose({nrow(ms_wsl)})\n')
 }
+ 
 
 # High-level segmentation wrapper
 segment_ct <- function(source_dir) {
