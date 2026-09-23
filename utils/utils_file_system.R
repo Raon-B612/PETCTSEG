@@ -190,6 +190,7 @@ rename_lx <- function(src_dir = gz_dir) {
 move_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
   files_to_move <- c(
     dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = '(CT_|SUV_|PET).*\\.nii', invert = TRUE),
+    dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = 'ROI'),
     dir_ls(src_dir, type = 'directory', recurse = TRUE, regexp = "3D|moosez-|tmp")
   )
   
