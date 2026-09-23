@@ -160,7 +160,7 @@ rename_moose <- function(subjdir) {
       file.rename(infile, outfile)
       cat("\n", infile, "-->", outfile)
     })
-  cli_alert_success('All moose segmentation files are renamed.')
+  # cli_alert_success('All moose segmentation files are renamed.')
 }
 
 # Rename LIFEx SUV outputs
