@@ -12,7 +12,7 @@ from totalsegmentator.python_api import totalsegmentator
 
 # 기존 get_local_ip() 또는 localhost 설정 대신 아래 주소 사용
 LHM_DATA_URL = "http://192.168.0.3:8085/data.json"
-TEMP_THRESHOLD = 60.0
+TEMP_THRESHOLD = 65.0
 TEMP_CHECK_INTERVAL = 2
 
 def get_cpu_temp_from_lhm(url=LHM_DATA_URL):
