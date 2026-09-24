@@ -1,7 +1,7 @@
 ##-- 00. initialize --##
 rm(list=ls())
 source('~/CONFIG.R')
-source('~/PETCTSEG/scripts/CONFIG_PETCTSEG.R')
+source('~/PETCTSEG/CONFIG_PETCTSEG.R')
 
 # set working directory
 src_dir <- 'C:/Temp/PETCTSRC/'
