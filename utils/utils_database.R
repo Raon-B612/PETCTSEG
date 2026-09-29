@@ -74,6 +74,7 @@ update_seg_db <- function() {
     mutate(
       segfile = file.path(subjdir, paste0(module, "_", subjid, ".nii.gz"))
     )
+  y <- y[sample(nrow(y)),]
   
   # seg 중 하나라도 없으면 어떤 파일이 없는지 알려주고 에러로 중단
   cat('Checking missing segmentation files..\n')
@@ -110,3 +111,4 @@ update_seg_db <- function() {
   
   return(df_final)
 }
+
