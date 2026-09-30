@@ -1,15 +1,15 @@
-##-- 00. initialize --##
-rm(list=ls())
-source('~/CONFIG.R')
-source('~/PETCTSEG/CONFIG_PETCTSEG.R')
+## -- 00. initialize --##
+rm(list = ls())
+source("~/CONFIG.R")
+source("~/PETCTSEG/CONFIG_PETCTSEG.R")
 
 # set working directory
-src_dir <- 'C:/Temp/PETCTSRC/'
+src_dir <- "C:/Temp/PETCTSRC/"
 dir_create(src_dir)
 
 # quick update segmentation database
-seg_db <- read_csv(path(share_dir, 'seg_db.csv'), show_col_types = FALSE)
-seg_db[1,] |> select(pdate, qdate)
+seg_db <- read_csv(path(share_dir, "seg_db.csv"), show_col_types = FALSE)
+seg_db[1, ] |> select(pdate, qdate)
 
 #-- 00. preprocessing --#
 dcm_df <- read_dicom_dir()
@@ -22,7 +22,7 @@ resample_suv_to_ct(src_dir)
 move_deprecated(src_dir)
 
 # -- 02. segmentation --#
-prepare_segmentation(src_dir, task = 'all')
+prepare_segmentation(src_dir, task = "all")
 # segment_ct(src_dir)
 
 #-- 03. roi_measurement and summary --#
