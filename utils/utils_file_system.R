@@ -188,23 +188,25 @@ rename_lx <- function(src_dir = gz_dir) {
 
 # Move deprecated or raw files to cleanup root
 move_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
+  # src <- gz_dir
   files_to_move <- c(
     dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = '(CT_|SUV_|PET).*\\.nii', invert = TRUE),
     dir_ls(src_dir, type = 'file', recurse = TRUE, regexp = 'ROI'),
     dir_ls(src_dir, type = 'directory', recurse = TRUE, regexp = "3D|moosez-|tmp")
   )
   
-  if (length(files_to_move) > 0) {
-    walk(files_to_move, function(path0) {
-      rel  <- path_rel(path0, start = src_dir)
-      dest <- file.path(target_root, rel)
-      dir_create(dirname(dest))
-      if (dir_exists(path0)) { dir_copy(path0, dest, overwrite = TRUE); dir_delete(path0) }
-      else { file_copy(path0, dest, overwrite = TRUE); file_delete(path0) }
-    })
-  }
+  # if (length(files_to_move) > 0) {
+  #   walk(files_to_move, function(path0) {
+  #     rel  <- path_rel(path0, start = src_dir)
+  #     dest <- file.path(target_root, rel)
+  #     dir_create(dirname(dest))
+  #     if (dir_exists(path0)) { dir_copy(path0, dest, overwrite = TRUE); dir_delete(path0) }
+  #     else { file_copy(path0, dest, overwrite = TRUE); file_delete(path0) }
+  #   })
+  # }
   
-  cli_alert_success('Successfully moved temporary files/folders to {target_root}.')
+  # cli_alert_success('Successfully moved temporary files/folders to {target_root}.')
+  cli_alert_success('Successfully purged temporary files/folders.')
 }
 
 # Distribute processed files to permanent drive locations
