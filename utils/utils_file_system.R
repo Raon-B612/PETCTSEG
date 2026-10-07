@@ -194,7 +194,7 @@ rename_lx <- function(src_dir = gz_dir) {
 }
 
 # Move deprecated or raw files to cleanup root
-move_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
+delete_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
   # src <- gz_dir
   files_to_move <- c(
     dir_ls(src_dir, type = "file", recurse = TRUE, regexp = "(CT_|SUV_|PET).*\\.nii", invert = TRUE),

@@ -19,7 +19,7 @@ dcm2nii_pet(dcm_df)
 #-- 01. resample PET to CT space --#
 rename_lx(src_dir)
 resample_suv_to_ct(src_dir)
-move_deprecated(src_dir)
+delete_deprecated(src_dir)
 
 # -- 02. segmentation --#
 prepare_segmentation(src_dir, task = "all")
