@@ -213,6 +213,7 @@ move_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
   # }
 
   # cli_alert_success('Successfully moved temporary files/folders to {target_root}.')
+  unlink(files_to_move, recursive = TRUE)
   cli_alert_success("Successfully purged temporary files/folders.")
 }
 

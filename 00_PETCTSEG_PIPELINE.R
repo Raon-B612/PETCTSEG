@@ -9,7 +9,7 @@ dir_create(src_dir)
 
 # quick update segmentation database
 seg_db <- read_csv(path(share_dir, "seg_db.csv"), show_col_types = FALSE)
-seg_db[1, ] |> select(pdate, qdate)
+seg_db$pdate[1]
 
 #-- 00. preprocessing --#
 dcm_df <- read_dicom_dir()
