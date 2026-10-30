@@ -66,7 +66,7 @@ dcm2nii_pet <- function(dicom_df = dcm_df) {
 # SUV image resampling to CT space
 resample_suv_to_ct <- function(source_dir, overwrite = "FALSE") {
   rename_lx(source_dir)
-  move_deprecated(source_dir)
+  delete_deprecated(source_dir)
 
   gz_df <- dir_parsing(source_dir)
 

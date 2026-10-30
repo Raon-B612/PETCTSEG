@@ -34,3 +34,4 @@ distribute_processed_files(gz_dir)
 
 #-- 05. update segmentation database --#
 update_seg_db()
+quick_db_uptake()
