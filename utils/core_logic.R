@@ -25,6 +25,7 @@ read_dicom_dir <- function(src_dir = "C:/Temp/PETCTSRC/", dcm_dir = dcm_path) {
       output_dir  = path(src_dir, prefix, subjid_long),
       ct          = path(output_dir, paste0("CT_", subjid, ".nii.gz")),
       suv         = path(output_dir, paste0("SUV_", subjid, ".nii.gz")),
+      pet         = path(output_dir, paste0("PET_", subjid, ".nii.gz"))
     )
 
   write_csv(dcm_df, path(prep_dir, "petctdcm.csv"))
@@ -66,7 +67,7 @@ dcm2nii_pet <- function(dicom_df = dcm_df) {
 # SUV image resampling to CT space
 resample_suv_to_ct <- function(source_dir, overwrite = "FALSE") {
   rename_lx(source_dir)
-  move_deprecated(source_dir)
+  delete_deprecated(source_dir)
 
   gz_df <- dir_parsing(source_dir)
 

@@ -198,10 +198,10 @@ delete_deprecated <- function(src_dir = gz_dir, target_root = "C:/Temp/todel") {
   # src <- gz_dir
   files_to_move <- c(
     dir_ls(src_dir, type = "file", recurse = TRUE, regexp = "(CT_|SUV_|PET).*\\.nii", invert = TRUE),
-    dir_ls(src_dir, type = "file", recurse = TRUE, regexp = "ROI"),
+    dir_ls(src_dir, type = "file", recurse = TRUE, regexp = "ROI|Eq"),
     dir_ls(src_dir, type = "directory", recurse = TRUE, regexp = "3D|moosez-|tmp")
   )
-
+  
   # if (length(files_to_move) > 0) {
   #   walk(files_to_move, function(path0) {
   #     rel  <- path_rel(path0, start = src_dir)
