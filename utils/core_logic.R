@@ -25,6 +25,7 @@ read_dicom_dir <- function(src_dir = "C:/Temp/PETCTSRC/", dcm_dir = dcm_path) {
       output_dir  = path(src_dir, prefix, subjid_long),
       ct          = path(output_dir, paste0("CT_", subjid, ".nii.gz")),
       suv         = path(output_dir, paste0("SUV_", subjid, ".nii.gz")),
+      pet         = path(output_dir, paste0("PET_", subjid, ".nii.gz"))
     )
 
   write_csv(dcm_df, path(prep_dir, "petctdcm.csv"))

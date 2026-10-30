@@ -12,7 +12,7 @@ seg_db <- read_csv(path(share_dir, "seg_db.csv"), show_col_types = FALSE)
 seg_db$pdate[1]
 
 #-- 00. preprocessing --#
-dcm_df <- read_dicom_dir()
+dcm_df <- read_dicom_dir(dcm_dir = 'F:/PETCTDCM/')
 dcm2nii_ct(dcm_df, skip = FALSE)
 dcm2nii_pet(dcm_df)
 
