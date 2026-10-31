@@ -57,8 +57,8 @@ def get_script_dir() -> Path:
 
 # === Paths ===
 SCRIPT_DIR      = get_script_dir()
-CSV_INPUT_PATH  = SCRIPT_DIR.parent / "prep" / "petctdcm.csv"
-LOGS_DIR        = SCRIPT_DIR.parent / "logs"
+CSV_INPUT_PATH  = SCRIPT_DIR / "prep" / "petctdcm.csv"
+LOGS_DIR        = SCRIPT_DIR / "logs"
 ERROR_LOG_PATH  = LOGS_DIR / "petct_error.csv"
 QC_LOG_PATH     = LOGS_DIR / "petct_qc.csv"
 
