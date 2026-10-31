@@ -1,5 +1,5 @@
 # Build DICOM to NIfTI mapping
-read_dicom_dir <- function(src_dir = "C:/Temp/PETCTSRC/", dcm_dir = dcm_path) {
+read_dicom_dir <- function(src_dir = "C:/Temp/PETCTSRC/", dcm_dir = dcm_path, overwrite = FALSE) {
   message("[INFO] ", path(dcm_dir), " --> ", path(src_dir))
 
   dcm_df <- dir_ls(dcm_dir, type = "directory", recurse = TRUE, regexp = "(CT|PT)$") |>
@@ -16,8 +16,11 @@ read_dicom_dir <- function(src_dir = "C:/Temp/PETCTSRC/", dcm_dir = dcm_path) {
       names_from  = mod,
       values_from = dir
     ) |>
-    left_join(seg_db |> select(subjid_long, qdate), by = "subjid_long") |>
-    filter(is.na(qdate)) |>
+    left_join(seg_db |> select(subjid_long, qdate), by = "subjid_long")
+  
+  if (overwrite==FALSE) dcm_df <-  filter(dcm_df, is.na(qdate))
+  
+  dcm_df <- dcm_df |>
     mutate(
       subjid      = str_extract(subjid_long, patterns$subjid),
       pdate       = str_extract(subjid_long, "\\d{8}$") |> ymd(),
