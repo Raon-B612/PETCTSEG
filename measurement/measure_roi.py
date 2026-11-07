@@ -249,7 +249,8 @@ def main():
         num_workers = min(4, max(1, physical_cores // 2))
         storage_mode = "HDD (Throttled, Max 4 Workers)"
     else:
-        num_workers = max(1, physical_cores // 2)
+        # num_workers = max(1, physical_cores // 2)
+        num_workers = max(1, physical_cores -1 )
         storage_mode = "SSD (High Throughput, Full Concurrency)"
 
     if not EXCEL_INPUT_PATH.exists():
