@@ -170,13 +170,13 @@ segment_ct <- function(source_dir) {
 
 # Run ROI measurement
 measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
-  # source_dir <- 'D:/PSMAV/'
+  
   df <- dir_parsing(source_dir) |> generate_expanded_df()
 
   incomplete <- df |> filter(img_missing | seg_missing)
   if (nrow(incomplete) != 0) stop(cat(">> missing image or segmentation files in", unlist(select(incomplete, dir)), ".."))
 
-  if (overwrite == FALSE) df <- filter(df, csv_missing)
+  # if (overwrite == FALSE) df <- filter(df, csv_missing)
 
   measure_df <- df |>
     filter(!img_missing & !seg_missing) |>
@@ -186,11 +186,12 @@ measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
 
   is_hdd <- str_detect(as.character(measure_df$ct[1]), "^[DEde]:")
   hdd_flag <- if (is_hdd) "--hdd" else ""
+  
+  overwrite_flag <- if (overwrite) "--overwrite" else ""
 
   py_script <- path(script_dir, "measurement", "measure_roi.py")
-  cmd_str <- sprintf('start "MEASURE_ROI" cmd /k python -u "%s" %s', py_script, hdd_flag)
+  cmd_str <- sprintf('start "MEASURE_ROI" cmd /k python -u "%s" %s %s', py_script, hdd_flag, overwrite_flag)
   shell(cmd_str, wait = FALSE)
-  # message("\n[INFO] ROI measurement completed: ", unlist(source_dir), '.')
 }
 
 # Helper: Empty QC data table
