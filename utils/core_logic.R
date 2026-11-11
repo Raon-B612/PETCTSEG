@@ -143,6 +143,8 @@ prepare_segmentation <- function(source_dir = gz_dir, task = "all") {
 
   # for wsl; revserse order
   ts_wsl <- ts_df |> arrange(desc(ct))
+  write_csv(ts_wsl, path(prep_dir, 'tseg_prep_win.csv'))
+  
   ts_wsl[] <- lapply(ts_wsl, win_to_wsl)
   write_csv(ts_wsl, path(prep_dir, "tseg_prep_wsl.csv"))
 
@@ -154,6 +156,7 @@ prepare_segmentation <- function(source_dir = gz_dir, task = "all") {
   write_csv(ms_df, path(prep_dir, "moose_prep.csv"))
 
   ms_wsl <- ms_df |> arrange(desc(ct))
+  write_csv(ms_wsl, path(prep_dir, 'moose_prep_win.csv'))
   ms_wsl[] <- lapply(ms_wsl, win_to_wsl)
   write_csv(ms_wsl, path(prep_dir, "moose_prep_wsl.csv"))
 
