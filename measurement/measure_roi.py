@@ -257,8 +257,8 @@ def main():
 
     # Storage-aware worker allocation
     if args.hdd:
-        num_workers = min(4, max(1, physical_cores // 2))
-        storage_mode = "HDD (Throttled, Max 4 Workers)"
+        num_workers = max(4, max(1, physical_cores // 4))
+        storage_mode = f"HDD (Throttled, Max {num_workers} Workers)"
     else:
         num_workers = max(1, physical_cores // 2)
         storage_mode = "SSD (High Throughput, Full Concurrency)"
