@@ -16,10 +16,14 @@ seg_db$pdate[1]
 #-- 00. preprocessing --#
 dcm_df <- read_dicom_dir(dcm_dir = 'E:/PETCTDCM/')
 
-processx::run(py, "petct_batch_pipeline.py",
-    wd = script_dir,         # 작업 폴더 지정
-    echo = TRUE,             # 실시간 출력
-    error_on_status = TRUE)  # 파이썬이 실패하면 R에서도 에러
+py <- "C:/Python313/python.exe"
+
+processx::run(
+  py, 
+  args = c("petct_batch_pipeline.py", "--workers", "12"),
+  wd = script_dir,         # 작업 폴더 지정
+  echo = TRUE,             # 실시간 출력
+  error_on_status = TRUE)  # 파이썬이 실패하면 R에서도 에러
 
 # dcm2nii_ct(dcm_df, skip = FALSE); dcm2nii_pet(dcm_df)
 
