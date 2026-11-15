@@ -172,13 +172,18 @@ segment_ct <- function(source_dir) {
 }
 
 # Run ROI measurement
-measure_roi <- function(source_dir = gz_dir, overwrite = FALSE) {
-  
+measure_roi <- function(source_dir = gz_dir, overwrite = TRUE, interim = FALSE) {
+  # source_dir <- hc_dir; interim=TRUE
   df <- dir_parsing(source_dir) |> generate_expanded_df()
 
-  incomplete <- df |> filter(img_missing | seg_missing)
-  if (nrow(incomplete) != 0) stop(cat(">> missing image or segmentation files in", unlist(select(incomplete, dir)), ".."))
-
+  if (interim == TRUE) {
+    df <- df |>
+      filter(csv_missing)
+  } else {
+    incomplete <- df |> filter(img_missing | seg_missing)
+    if (nrow(incomplete) != 0) stop(cat(">> missing image or segmentation files in", unlist(select(incomplete, dir)), ".."))  
+  }
+  
   # if (overwrite == FALSE) df <- filter(df, csv_missing)
 
   measure_df <- df |>
