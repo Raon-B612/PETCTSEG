@@ -14,7 +14,7 @@ seg_db$pdate[1]
 
 
 #-- 00. preprocessing --#
-dcm_df <- read_dicom_dir(dcm_dir = 'E:/PETCTDCM/')
+dcm_df <- read_dicom_dir(dcm_dir = 'F:/PETCTDCM/')
 
 py <- "C:/Python313/python.exe"
 
