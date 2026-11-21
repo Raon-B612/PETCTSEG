@@ -129,22 +129,26 @@ update_seg_db <- function() {
 
 ## quick database uptake ##
 quick_db_uptake <- function() {
-  df <- tibble(
-    db_dir = dir_ls(gz_all, type = 'directory', regexp = '\\d{8}$')
-    ) |>
+  df <- tibble(db_dir = dir_ls(gz_all, type = 'directory', regexp = '\\d{8}$')) |>
     mutate(
       subjid_long = basename(db_dir),
       pdate  = str_extract(subjid_long, '\\d{8}$') |> ymd(),
       subjid = str_extract(basename(db_dir), '[A-Z0-9]+\\d{10,13}'),
       accn = str_extract(subjid, '\\d{10,13}'),
       ct  = path(db_dir, paste0('CT_', subjid, '.nii.gz')),
-      suv = path(db_dir, paste0('SUV_', subjid, '.nii.gz'))
-      )
-  df$img_exists <- file.exists(df$ct) * file.exists(df$suv)
-  df <- df |>
-    filter(img_exists) |>
-    mutate(qdate = Sys.Date()) |>
+      suv = path(db_dir, paste0('SUV_', subjid, '.nii.gz')),
+      qdate = Sys.Date()
+    ) |>
     arrange(desc(pdate))
-  write_csv(df, path(share_dir, "seg_db.csv"))
+  
+  all_files <- c(df$ct, df$suv) |> as.character()
+  
+  if (any(file_size(all_files) == 0) |
+      any(!file.exists(all_files)))
+    cli::cli_abort('Missing image files..')
+  else
+    write_csv(df, path(share_dir, "seg_db.csv"))
+  
   return(df)
 }
+
