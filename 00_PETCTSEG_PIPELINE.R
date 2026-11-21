@@ -7,34 +7,26 @@ source("~/PETCTSEG/CONFIG_PETCTSEG.R")
 src_dir <- "C:/Temp/PETCTSRC/"
 dir_create(src_dir)
 
-
 # quick update segmentation database
 seg_db <- read_csv(path(share_dir, "seg_db.csv"), show_col_types = FALSE)
 seg_db$pdate[1]
 
-
-#-- 00. preprocessing --#
-dcm_df <- read_dicom_dir(dcm_dir = 'F:/PETCTDCM/')
+#-- 01. preprocessing --#
+dcm_df <- read_dicom_dir(dcm_dir = 'E:/PETCTDCM/')
 
 py <- "C:/Python313/python.exe"
 
 processx::run(
   py, 
-  args = c("petct_batch_pipeline.py", "--workers", "12"),
+  args = c("petct_batch_pipeline.py", "--workers", "12", "--overwrite"),
   wd = script_dir,         # 작업 폴더 지정
   echo = TRUE,             # 실시간 출력
   error_on_status = TRUE)  # 파이썬이 실패하면 R에서도 에러
 
-# dcm2nii_ct(dcm_df, skip = FALSE); dcm2nii_pet(dcm_df)
-
-
-#-- 01. resample PET to CT space --#
-# rename_lx(src_dir); resample_suv_to_ct(src_dir)
 delete_deprecated(src_dir)
 
 # -- 02. segmentation --#
 prepare_segmentation(src_dir, task = "all")
-# segment_ct(src_dir)
 
 #-- 03. roi_measurement and summary --#
 measure_roi(src_dir, overwrite = TRUE)
@@ -45,4 +37,3 @@ distribute_processed_files(gz_dir)
 
 #-- 05. update segmentation database --#
 update_seg_db()
-quick_db_uptake()
